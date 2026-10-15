@@ -4,10 +4,15 @@
 #
 # scripts/build_istoreos.py walks the checked-out feeds/ tree after
 # 'scripts/feeds update' but before 'scripts/feeds install'. Any package
-# directory whose basename matches the first column is deleted everywhere
-# EXCEPT inside the feed named in the second column. This guarantees the
-# designated feed wins while still clearing the same-named copy that ships
-# with the upstream (jjm2473) packages/luci/third feeds.
+# directory whose basename matches the first column is moved out of the build
+# tree everywhere EXCEPT inside the feed named in the second column. This
+# guarantees the designated feed wins while still clearing the same-named copy
+# that ships with the upstream (jjm2473) packages/luci/third feeds.
+#
+# Use "-" as the second column to drop a package from every feed. The package
+# is then neither installed nor built. This is how packages that are broken
+# with the current kconfig/toolchain, or that nothing selected depends on, are
+# kept out of the build entirely.
 
 # Shared proxy engines: helloworld is the single source, so drop the copies
 # that the upstream jjm2473 packages feed would otherwise provide.
@@ -27,7 +32,11 @@ luci-app-passwall passwall
 luci-app-nikki nikki
 nikki nikki
 mihomo-meta nikki
-mihomo-alpha nikki
+# mihomo-meta and mihomo-alpha CONFLICT with each other, and both PROVIDE the
+# virtual 'mihomo' symbol. Two mutually conflicting providers make kconfig
+# report "recursive dependency detected!". mihomo-meta is the stable variant,
+# so drop mihomo-alpha everywhere.
+mihomo-alpha -
 
 # OTA: replace the iStoreOS-native luci-app-ota/otahelper with sbwml's copies
 # so the updater can be driven by our own gh-pages manifest.
@@ -40,3 +49,16 @@ coremark packages
 luci-app-adguardhome luci
 luci-app-vlmcsd third
 vlmcsd third
+
+# luci-app-ssr-plus (helloworld feed) declares several conditional engine
+# dependencies (+PACKAGE_luci-app-ssr-plus_INCLUDE_X:y where the engine has arch
+# restrictions). That pattern makes kconfig report "recursive dependency
+# detected!" for every engine. Nothing we select depends on luci-app-ssr-plus,
+# so drop it everywhere. Its engines (chinadns-ng, shadowsocksr-libev, ...) are
+# still pulled by luci-app-passwall where needed.
+luci-app-ssr-plus -
+
+# luci-app-baidupcs-web (third feed) depends on a 'baidupcs-web' backend that no
+# feed ships, which makes the package scanner warn on every build. Drop the
+# unused LuCI front-end so the dependency goes away.
+luci-app-baidupcs-web -

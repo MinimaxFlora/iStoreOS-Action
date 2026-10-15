@@ -219,7 +219,8 @@ def stage_feeds() -> None:
 
 def _resolve_conflicts() -> None:
     """Move same-named package directories out of every feed except the
-    designated provider feed, as described in config/feeds.remove."""
+    designated provider feed, as described in config/feeds.remove. A provider
+    of "-" drops the package from every feed."""
     conflicts: dict[str, str] = {}
     for line in read_non_comment_lines(FEEDS_REMOVE):
         name, provider = line.split()

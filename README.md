@@ -78,6 +78,21 @@ already installed, leaving the intended provider feed uninstalled (surfacing as
 `... has a dependency on 'sing-box', which does not exist`). Stage `feeds`
 therefore runs `feeds update -i` to rebuild the indexes after the quarantine.
 
+A provider of `-` drops the package from every feed instead of picking a
+winner. This removes packages that break the build or that nothing selected
+depends on:
+
+- `mihomo-alpha`: `mihomo-meta` and `mihomo-alpha` `CONFLICT` with each other
+  and both `PROVIDES` the virtual `mihomo` symbol, so kconfig reports a
+  recursive dependency. `mihomo-meta` is kept as the stable variant.
+- `luci-app-ssr-plus`: its conditional engine dependencies
+  (`+PACKAGE_luci-app-ssr-plus_INCLUDE_X:y`, where the engine has arch
+  restrictions) make kconfig report a recursive dependency per engine. It is
+  not selected by any seed, so it is dropped; its engines are still pulled by
+  `luci-app-passwall` where needed.
+- `luci-app-baidupcs-web`: depends on a `baidupcs-web` backend that no feed
+  ships, which makes the package scanner warn on every build.
+
 ## OTA manifest
 
 `ota.json` on `gh-pages` follows the sbwml format, keyed by device
