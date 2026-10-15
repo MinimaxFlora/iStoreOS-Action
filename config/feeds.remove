@@ -1,0 +1,42 @@
+# Feeds name-conflict resolution table.
+#
+# Format: <package-directory-name> <feed-that-should-provide-it>
+#
+# scripts/build_istoreos.py walks the checked-out feeds/ tree after
+# 'scripts/feeds update' but before 'scripts/feeds install'. Any package
+# directory whose basename matches the first column is deleted everywhere
+# EXCEPT inside the feed named in the second column. This guarantees the
+# designated feed wins while still clearing the same-named copy that ships
+# with the upstream (jjm2473) packages/luci/third feeds.
+
+# Shared proxy engines: helloworld is the single source, so drop the copies
+# that the upstream jjm2473 packages feed would otherwise provide.
+sing-box helloworld
+xray-core helloworld
+v2ray-core helloworld
+v2ray-geodata helloworld
+microsocks helloworld
+luci-app-homeproxy helloworld
+
+# PassWall LuCI application comes from the Openwrt-Passwall feed. helloworld
+# also ships a copy, which is dropped here.
+luci-app-passwall passwall
+
+# Nikki stack comes from the OpenWrt-nikki feed. helloworld mirrors the same
+# package names, so its copies are dropped.
+luci-app-nikki nikki
+nikki nikki
+mihomo-meta nikki
+mihomo-alpha nikki
+
+# OTA: replace the iStoreOS-native luci-app-ota/otahelper with sbwml's copies
+# so the updater can be driven by our own gh-pages manifest.
+luci-app-ota openwrt_pkgs
+otahelper openwrt_pkgs
+
+# openwrt_pkgs mirrors a few packages that the baseline feeds already ship.
+# Keep the baseline provider so the standard version wins.
+coremark packages
+luci-app-adguardhome luci
+luci-app-vlmcsd third
+vlmcsd third

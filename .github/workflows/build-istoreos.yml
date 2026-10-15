@@ -1,0 +1,84 @@
+name: Build iStoreOS 25.12 (x86_64 EFI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the rolling GitHub release and OTA manifest
+        type: boolean
+        default: true
+  schedule:
+    # Weekly, Sunday 18:00 UTC.
+    - cron: '0 18 * * 0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-istoreos-x86_64-efi
+  cancel-in-progress: false
+
+env:
+  ISTOREOS_BUILD_ROOT: /home/runner/istoreos-build
+  ISTOREOS_JOBS: '4'
+
+jobs:
+  build:
+    name: Build firmware
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Maximize build space
+        uses: sbwml/actions@master
+        with:
+          root-reserve-gb: '5'
+          swap-size-gb: '4'
+          build-mount-path: /home/runner/istoreos-build
+
+      - name: Checkout builder repository
+        uses: actions/checkout@v4
+        with:
+          path: builder
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore OpenWrt download cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.ISTOREOS_BUILD_ROOT }}/istoreos/source/dl
+          key: istoreos-dl-${{ hashFiles('builder/config/**') }}
+          restore-keys: |
+            istoreos-dl-
+
+      - name: Build firmware
+        working-directory: builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/build_istoreos.py all
+
+      - name: Publish release
+        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        working-directory: builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/build_istoreos.py release
+
+      - name: Publish OTA manifest
+        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        working-directory: builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/build_istoreos.py ota
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: istoreos-x86_64-efi
+          path: builder/out/*
+          if-no-files-found: warn
+          retention-days: 14
