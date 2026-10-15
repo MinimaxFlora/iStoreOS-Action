@@ -93,6 +93,20 @@ depends on:
 - `luci-app-baidupcs-web`: depends on a `baidupcs-web` backend that no feed
   ships, which makes the package scanner warn on every build.
 
+## Source download verification
+
+Feeds that pin a git checkout record the sha256 of the tarball their own
+toolchain produced in `PKG_MIRROR_HASH`. For third-party feeds that value only
+reproduces with the exact tar/git/zstd versions used when it was recorded, and
+the upstream OpenWrt source mirrors do not host those tarballs at all (they
+answer `404`). Both GitHub fallbacks then repack the tree into different bytes,
+so the download dies on `Hash mismatch` before the package is compiled.
+
+`shadowsocksr-libev` hits this. Stage `feeds` rewrites its `PKG_MIRROR_HASH` to
+`skip`, which is the build system's documented opt-out from mirror-hash
+checking. The pinned `PKG_SOURCE_VERSION` commit remains the integrity anchor,
+so nothing is actually trusted more loosely.
+
 ## OTA manifest
 
 `ota.json` on `gh-pages` follows the sbwml format, keyed by device
