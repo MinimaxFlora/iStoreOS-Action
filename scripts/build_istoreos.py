@@ -186,6 +186,17 @@ def stage_feeds() -> None:
     log("Resolving feed package name conflicts")
     _resolve_conflicts()
 
+    # 'feeds update' builds one index per feed before the conflicting copies
+    # are moved aside. Those indexes still advertise the quarantined packages,
+    # and 'feeds install' resolves a source package by scanning the indexes in
+    # feeds.conf order. It would therefore select the now-empty baseline feed,
+    # create a dangling symlink and mark the name as installed, leaving the
+    # intended provider feed uninstalled (e.g. sing-box/xray-core/microsocks
+    # reported as "does not exist"). Rebuilding the indexes after the
+    # quarantine makes the provider feed the only match.
+    log("Rebuilding feed indexes after conflict resolution")
+    run(["./scripts/feeds", "update", "-i"], cwd=SRC_DIR)
+
     run(["./scripts/feeds", "install", "-a"], cwd=SRC_DIR)
 
 

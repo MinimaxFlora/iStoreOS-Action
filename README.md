@@ -70,6 +70,14 @@ feeds also provide. `config/feeds.remove` maps each conflicting package to the
 feed that should own it; the script moves every other copy into
 `work/istoreos/quarantine` before `feeds install`.
 
+The indexes written by `feeds update` are built *before* that quarantine, so
+they still advertise the removed packages. `feeds install` resolves a source
+package by scanning those indexes in `feeds.conf` order, so it would pick the
+now-empty baseline feed, create a dangling symlink and mark the name as
+already installed, leaving the intended provider feed uninstalled (surfacing as
+`... has a dependency on 'sing-box', which does not exist`). Stage `feeds`
+therefore runs `feeds update -i` to rebuild the indexes after the quarantine.
+
 ## OTA manifest
 
 `ota.json` on `gh-pages` follows the sbwml format, keyed by device
