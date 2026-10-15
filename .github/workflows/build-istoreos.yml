@@ -20,7 +20,6 @@ concurrency:
 
 env:
   ISTOREOS_BUILD_ROOT: /home/runner/istoreos-build
-  ISTOREOS_JOBS: '4'
 
 jobs:
   build:

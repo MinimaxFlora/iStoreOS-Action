@@ -63,11 +63,18 @@ FEEDS_CONF = CONFIG_DIR / "feeds.conf"
 FEEDS_REMOVE = CONFIG_DIR / "feeds.remove"
 
 
-def jobs(default_cpu: bool = True) -> int:
+def jobs() -> int:
+    """Parallel make jobs. ``ISTOREOS_JOBS`` overrides; otherwise use the
+    CPUs this process may run on (``nproc``) plus one, the usual OpenWrt
+    convention for overlapping I/O with compilation."""
     env = os.environ.get("ISTOREOS_JOBS")
     if env:
         return int(env)
-    return os.cpu_count() or 2 if default_cpu else 1
+    if hasattr(os, "sched_getaffinity"):
+        cpus = len(os.sched_getaffinity(0))
+    else:
+        cpus = os.cpu_count() or 2
+    return cpus + 1
 
 
 # --------------------------------------------------------------------------- #
@@ -313,8 +320,13 @@ def stage_build() -> None:
     build_date = int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
     env = {"SOURCE_DATE_EPOCH": str(build_date)}
     (WORK_DIR / "build-date").write_text(str(build_date))
-    run(["make", f"-j{jobs()}", "download"], cwd=SRC_DIR, env=env)
-    run(["make", f"-j{jobs()}"], cwd=SRC_DIR, env=env)
+    # IGNORE_ERRORS only covers packages that are neither selected (=y) nor
+    # needed for the image, so one incidental broken package cannot abort the
+    # whole run. A selected package failing still stops the build, because the
+    # ignore list excludes -y.
+    flags = [f"-j{jobs()}", "IGNORE_ERRORS=n m"]
+    run(["make", *flags, "download"], cwd=SRC_DIR, env=env)
+    run(["make", *flags], cwd=SRC_DIR, env=env)
 
 
 def stage_collect() -> None:

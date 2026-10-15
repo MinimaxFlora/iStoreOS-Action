@@ -33,7 +33,10 @@ stage for debugging (`deps`, `source`, `patch`, `feeds`, `config`, `build`,
    `feeds install -a`.
 5. `config` - concatenate the seed + package list into `.config`, drop an
    OTA `api_url` uci-defaults overlay, run `make defconfig`.
-6. `build` - `make download` then `make -j<N>` with `SOURCE_DATE_EPOCH` set.
+6. `build` - `make download` then `make` with `SOURCE_DATE_EPOCH` set. Parallelism
+   is `nproc + 1` (override with `ISTOREOS_JOBS`), and `IGNORE_ERRORS=n m` lets
+   an incidental non-selected package fail without killing the run; a selected
+   (`=y`) package failing still stops the build.
 7. `collect` - copy the combined-EFI image to `out/`, compute sha256, write
    `out/artifact-index.json`.
 8. `release` - create or update the rolling release `v25.12.5` via `gh`.
