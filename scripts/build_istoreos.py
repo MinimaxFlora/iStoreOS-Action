@@ -112,14 +112,28 @@ def replace_in_file(path: Path, old: str, new: str) -> int:
 # Stages
 # --------------------------------------------------------------------------- #
 
+# Host build dependencies for a full x86_64 image build. This is the union of
+# the OpenWrt documented prerequisite set and the extras iStoreOS packages need
+# (32-bit multilib for GRUB/img helpers, host dev libraries for various tools).
 APT_PACKAGES = [
+    # core toolchain and build essentials
     "autoconf", "automake", "bc", "binutils", "bison", "build-essential",
-    "ccache", "cmake", "cpio", "curl", "device-tree-compiler", "file", "flex",
-    "gawk", "gettext", "git", "jq", "libelf-dev", "liblzma-dev", "libncurses-dev",
-    "libssl-dev", "libtool-bin", "libzstd-dev", "nasm", "patch", "pkg-config",
-    "python3", "python3-pyelftools", "python3-setuptools", "rsync", "scons",
-    "subversion", "swig", "time", "unzip", "wget", "xz-utils", "zip",
-    "zlib1g-dev", "zstd",
+    "bzip2", "ccache", "cmake", "cpio", "diffutils", "file", "flex",
+    "g++", "g++-multilib", "gawk", "gcc-multilib", "gettext", "git",
+    "gperf", "libtool", "libtool-bin", "libltdl-dev", "patch", "pkg-config",
+    "rsync", "scons", "subversion", "swig", "texinfo", "time",
+    # 32-bit runtime/dev support (x86_64 target builds some 32-bit helpers)
+    "lib32gcc-s1", "libc6-dev-i386",
+    # libraries used by host tools
+    "libelf-dev", "libfuse-dev", "libglib2.0-dev", "libgnutls28-dev",
+    "liblzma-dev", "libncurses-dev", "libreadline-dev", "libssl-dev",
+    "libzstd-dev", "zlib1g-dev", "zstd",
+    # misc host utilities
+    "ca-certificates", "curl", "device-tree-compiler", "jq", "libplist-utils",
+    "nasm", "unzip", "wget", "xz-utils", "zip",
+    # python
+    "python3", "python3-dev", "python3-pip", "python3-pyelftools",
+    "python3-setuptools", "python3-venv",
 ]
 
 
