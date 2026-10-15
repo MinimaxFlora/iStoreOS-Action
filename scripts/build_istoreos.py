@@ -164,7 +164,10 @@ def stage_patch() -> None:
     # 2) os-release must expose BUILD_DATE (plain var) for sbwml's luci-app-ota.
     os_release = SRC_DIR / "package" / "base-files" / "files" / "usr" / "lib" / "os-release"
     text = os_release.read_text()
-    if 'BUILD_DATE="%B"' not in text:
+    # Match a real assignment; a plain substring test is fooled by the
+    # existing OPENWRT_BUILD_DATE line.
+    has_build_date = any(line.startswith("BUILD_DATE=") for line in text.splitlines())
+    if not has_build_date:
         os_release.write_text(text.rstrip("\n") + '\nBUILD_DATE="%B"\n')
         print("  os-release: added BUILD_DATE=\"%B\"")
 
@@ -208,13 +211,23 @@ def _resolve_conflicts() -> None:
         name, provider = line.split()
         conflicts[name] = provider
 
+    # Only the feeds declared in feeds.conf carry package directories. The
+    # build system also drops a "feeds/base" symlink onto the core package/
+    # tree; walking it would reach unrelated core packages (and, once feeds
+    # install has run, loop back through package/feeds), so skip anything that
+    # is not a declared feed or is reached through a symlink.
+    declared = {line.split()[1] for line in read_non_comment_lines(FEEDS_CONF)}
+
     feeds_dir = SRC_DIR / "feeds"
     moved = 0
-    for feed in sorted(p for p in feeds_dir.iterdir() if p.is_dir()):
+    for feed in sorted(p for p in feeds_dir.iterdir()
+                       if p.is_dir() and p.name in declared and not p.is_symlink()):
         matches = [
             d for d in feed.rglob("*")
             if d.is_dir() and d.name in conflicts
             and conflicts[d.name] != feed.name
+            and not d.is_symlink()
+            and ".git" not in d.parts
             and (d / "Makefile").exists()
         ]
         for pkgdir in matches:

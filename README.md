@@ -1,8 +1,8 @@
 # iStoreOS 25.12 x86_64 EFI builder
 
 GitHub Actions pipeline that compiles the iStoreOS 25.12 x86_64 EFI firmware
-from source, preinstalls the OTA updater and the homeproxy / PassWall / Nikki
-plugins, publishes a rolling GitHub release and refreshes an OTA manifest on
+from source, preinstalls the OTA updater and the homeproxy / PassWall / Nikki /
+mosdns plugins, publishes a rolling GitHub release and refreshes an OTA manifest on
 the `gh-pages` branch.
 
 ## Layout
