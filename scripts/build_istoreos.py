@@ -369,7 +369,15 @@ def stage_build() -> None:
     # reproduced in minutes instead of after a full world build.
     target = os.environ.get("ISTOREOS_MAKE_TARGET", "").strip()
     if target:
-        steps = [[f"{target}/download"], [f"{target}/compile", "V=s"]]
+        # A bare '<pkg>/compile' does not pull in the host tools, the
+        # toolchain or a built kernel, so it fails on the first host tool it
+        # needs. 'prepare' builds exactly that prerequisite set, after which
+        # the single target can compile with full verbosity.
+        steps = [
+            ["prepare"],
+            [f"{target}/download"],
+            [f"{target}/compile", "V=s"],
+        ]
     else:
         steps = [["download"], []]
 
