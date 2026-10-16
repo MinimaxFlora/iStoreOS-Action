@@ -111,6 +111,7 @@ def run_build(cmd: list[str], cwd: Path, env: dict | None = None) -> int:
     merged = os.environ.copy()
     if env:
         merged.update(env)
+    print(f"$ {' '.join(cmd)}", flush=True)
     log_path = WORK_DIR / "build.log"
     tail: collections.deque[str] = collections.deque(maxlen=500)
     proc = subprocess.Popen(cmd, cwd=str(cwd), env=merged,
@@ -126,7 +127,7 @@ def run_build(cmd: list[str], cwd: Path, env: dict | None = None) -> int:
         return 0
 
     match = re.search(r"ERROR: (\S+) failed to build", "".join(tail))
-    if not match:
+    if not match or "V=s" in cmd:
         return proc.returncode
     package = match.group(1)
     print(f"\n\033[1;31m==> Rebuilding {package} with V=s to surface the real error\033[0m",
@@ -362,7 +363,17 @@ def stage_build() -> None:
     # whole run. A selected package failing still stops the build, because the
     # ignore list excludes -y.
     flags = [f"-j{jobs()}", "IGNORE_ERRORS=n m"]
-    for args in (["download"], []):
+
+    # ISTOREOS_MAKE_TARGET builds a single package plus its dependency chain
+    # with full verbosity. It exists so a package-level failure can be
+    # reproduced in minutes instead of after a full world build.
+    target = os.environ.get("ISTOREOS_MAKE_TARGET", "").strip()
+    if target:
+        steps = [[f"{target}/download"], [f"{target}/compile", "V=s"]]
+    else:
+        steps = [["download"], []]
+
+    for args in steps:
         rc = run_build(["make", *flags, *args], cwd=SRC_DIR, env=env)
         if rc != 0:
             raise SystemExit(f"build failed ({rc}): make {args or 'world'}")

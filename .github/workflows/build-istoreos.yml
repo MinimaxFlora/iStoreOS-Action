@@ -7,6 +7,10 @@ on:
         description: Publish the rolling GitHub release and OTA manifest
         type: boolean
         default: true
+      make_target:
+        description: Debug only - build a single make target (e.g. package/kernel/i915-sriov-dkms/compile)
+        type: string
+        default: ''
   schedule:
     # Weekly, Sunday 18:00 UTC.
     - cron: '0 18 * * 0'
@@ -15,11 +19,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: build-istoreos-x86_64-efi
+  group: build-istoreos-x86_64-efi-${{ github.ref_name }}-${{ inputs.make_target || 'full' }}
   cancel-in-progress: false
 
 env:
   ISTOREOS_BUILD_ROOT: /home/runner/istoreos-build
+  ISTOREOS_MAKE_TARGET: ${{ inputs.make_target }}
 
 jobs:
   build:
@@ -60,14 +65,14 @@ jobs:
         run: python3 scripts/build_istoreos.py all
 
       - name: Publish release
-        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        if: ${{ !inputs.make_target && (github.event_name == 'schedule' || inputs.publish) }}
         working-directory: builder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/build_istoreos.py release
 
       - name: Publish OTA manifest
-        if: ${{ github.event_name == 'schedule' || inputs.publish }}
+        if: ${{ !inputs.make_target && (github.event_name == 'schedule' || inputs.publish) }}
         working-directory: builder
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
