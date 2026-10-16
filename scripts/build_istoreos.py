@@ -549,7 +549,13 @@ def main() -> None:
     print(f"jobs={jobs()}")
 
     if args.stage == "all":
-        for name in ORDER:
+        # A single-target debug build stops after build: it produces no image,
+        # so collect (and the release/ota stages, which the workflow already
+        # skips) would only fail on a missing artifact.
+        stages = ORDER
+        if os.environ.get("ISTOREOS_MAKE_TARGET", "").strip():
+            stages = [n for n in ORDER if n != "collect"]
+        for name in stages:
             STAGES[name]()
     else:
         STAGES[args.stage]()
