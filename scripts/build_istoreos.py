@@ -120,6 +120,10 @@ def run_build(cmd: list[str], cwd: Path, env: dict | None = None) -> int:
         for chunk in proc.stdout:  # type: ignore[union-attr]
             line = chunk.decode(errors="replace")
             sys.stdout.write(line)
+            # CI stdout is a pipe, so Python block-buffers it and the live log
+            # looks frozen while a long silent phase (tools/toolchain/kernel)
+            # runs. Flush per line so progress is visible as it happens.
+            sys.stdout.flush()
             fh.write(line)
             tail.append(line)
     proc.wait()
