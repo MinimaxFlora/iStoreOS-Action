@@ -56,6 +56,15 @@ stage for debugging (`deps`, `source`, `patch`, `feeds`, `config`, `build`,
 - **OTA replacement**: the in-tree `package/diy/luci-app-ota` is moved to the
   quarantine dir so the sbwml `luci-app-ota` + `otahelper` from the
   `openwrt_pkgs` feed is the only provider.
+- **SR-IOV DKMS kernel config**: `package/kernel/i915-sriov-dkms` vendors its
+  own `DRM_GPUSVM` and its `include/config.h` fails the build with `#error`
+  unless the kernel provides `CONFIG_HMM_MIRROR` and `CONFIG_MMU_NOTIFIER`.
+  `HMM_MIRROR` has no Kconfig prompt, so it can only be enabled through a
+  symbol that selects it. `CONFIG_DRM_AMDGPU_USERPTR=y` is appended to
+  `target/linux/x86/config-<ver>`; it selects both symbols and its only
+  dependency, `DRM_AMDGPU`, is already built by `kmod-drm-amdgpu`. The target
+  config is merged after the generic one (`scripts/kconfig.pl`), so the value
+  overrides the generic `# CONFIG_DRM_AMDGPU_USERPTR is not set`.
 
 ## Seed provenance
 

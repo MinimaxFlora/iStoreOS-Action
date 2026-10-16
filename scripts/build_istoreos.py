@@ -223,7 +223,7 @@ def stage_source() -> None:
 
 def stage_patch() -> None:
     """Apply the source customisations that are not part of initrd/CI tooling."""
-    log("Patching sources (default IP, OTA replacement, BUILD_DATE)")
+    log("Patching sources (default IP, OTA replacement, BUILD_DATE, DKMS kernel config)")
 
     # 1) Default LAN IP: 10.0.0.1. iStoreOS rewrites the upstream defaults at
     #    package-install time via a sed in this Makefile, so changing the sed
@@ -253,6 +253,27 @@ def stage_patch() -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(native_ota), str(dest))
         print(f"  quarantined {native_ota.relative_to(SRC_DIR)}")
+
+    # 4) The i915/xe SR-IOV DKMS vendors its own copy of DRM_GPUSVM and
+    #    hard-requires CONFIG_HMM_MIRROR (see its include/config.h, which has
+    #    #error guards for HMM_MIRROR and MMU_NOTIFIER). HMM_MIRROR has no
+    #    Kconfig prompt, so it can only be turned on by a symbol that selects
+    #    it. CONFIG_DRM_AMDGPU_USERPTR is the canonical selector; its only
+    #    dependency, DRM_AMDGPU, is already built via kmod-drm-amdgpu. The
+    #    generic kernel config disables amdgpu userptr, and the target config
+    #    is merged after generic (scripts/kconfig.pl), so setting it here wins.
+    x86_dir = SRC_DIR / "target" / "linux" / "x86"
+    kconfigs = [p for p in x86_dir.glob("config-*") if p.name != "config-default"]
+    if not kconfigs:
+        raise SystemExit("kernel config: no target/linux/x86/config-* found")
+    # Pick the newest kernel version if several config-<ver> files exist.
+    kconfig = max(kconfigs, key=lambda p: tuple(int(x) for x in p.name.split("-")[1].split(".")))
+    lines = kconfig.read_text().splitlines()
+    if not any(line.startswith("CONFIG_DRM_AMDGPU_USERPTR=") for line in lines):
+        lines.append("CONFIG_DRM_AMDGPU_USERPTR=y")
+        kconfig.write_text("\n".join(lines) + "\n")
+        print(f"  {kconfig.relative_to(SRC_DIR)}: enabled CONFIG_DRM_AMDGPU_USERPTR "
+              "(selects HMM_MIRROR for the SR-IOV DKMS)")
 
 
 def stage_feeds() -> None:
