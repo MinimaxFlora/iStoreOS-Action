@@ -81,3 +81,14 @@ jobs:
           path: builder/out/*
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: istoreos-build-log
+          path: |
+            ${{ env.ISTOREOS_BUILD_ROOT }}/istoreos/build.log
+            ${{ env.ISTOREOS_BUILD_ROOT }}/istoreos/source/logs/**
+          if-no-files-found: ignore
+          retention-days: 7

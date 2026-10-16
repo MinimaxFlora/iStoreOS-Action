@@ -25,10 +25,12 @@ Environment variables (all optional):
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -96,6 +98,41 @@ def run(cmd: list[str], cwd: Path | None = None, env: dict | None = None,
     if check and proc.returncode != 0:
         raise SystemExit(f"command failed ({proc.returncode}): {printable}")
     return proc
+
+
+def run_build(cmd: list[str], cwd: Path, env: dict | None = None) -> int:
+    """Run a make build, mirroring its output to stdout and a log file.
+
+    OpenWrt buffers each package's compile output into logs/ and only reports
+    ``ERROR: <pkg> failed to build`` at the default verbosity, so the real
+    compiler error never reaches CI. On failure, re-run just that package with
+    ``V=s`` and print the output inline.
+    """
+    merged = os.environ.copy()
+    if env:
+        merged.update(env)
+    log_path = WORK_DIR / "build.log"
+    tail: collections.deque[str] = collections.deque(maxlen=500)
+    proc = subprocess.Popen(cmd, cwd=str(cwd), env=merged,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    with log_path.open("w", errors="replace") as fh:
+        for chunk in proc.stdout:  # type: ignore[union-attr]
+            line = chunk.decode(errors="replace")
+            sys.stdout.write(line)
+            fh.write(line)
+            tail.append(line)
+    proc.wait()
+    if proc.returncode == 0:
+        return 0
+
+    match = re.search(r"ERROR: (\S+) failed to build", "".join(tail))
+    if not match:
+        return proc.returncode
+    package = match.group(1)
+    print(f"\n\033[1;31m==> Rebuilding {package} with V=s to surface the real error\033[0m",
+          flush=True)
+    subprocess.run(["make", f"{package}/compile", "V=s"], cwd=str(cwd), env=merged)
+    return proc.returncode
 
 
 def read_non_comment_lines(path: Path) -> list[str]:
@@ -325,8 +362,10 @@ def stage_build() -> None:
     # whole run. A selected package failing still stops the build, because the
     # ignore list excludes -y.
     flags = [f"-j{jobs()}", "IGNORE_ERRORS=n m"]
-    run(["make", *flags, "download"], cwd=SRC_DIR, env=env)
-    run(["make", *flags], cwd=SRC_DIR, env=env)
+    for args in (["download"], []):
+        rc = run_build(["make", *flags, *args], cwd=SRC_DIR, env=env)
+        if rc != 0:
+            raise SystemExit(f"build failed ({rc}): make {args or 'world'}")
 
 
 def stage_collect() -> None:
